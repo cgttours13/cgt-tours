@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quotation</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--ac:#1d2b45;--ac2:#e3262b;--ink:#1d2433;--muted:#667085;--line:#e4e7ec}
+  *{box-sizing:border-box} body{margin:0;background:#eef1f5;font-family:Nunito,system-ui,sans-serif;color:var(--ink);font-size:14px}
+  .bar{position:sticky;top:0;background:#1d2b45;color:#fff;display:flex;gap:.6rem;align-items:center;padding:.7rem 1rem;z-index:2}
+  .bar b{flex:1} .bar button{border:0;border-radius:8px;padding:.55rem 1rem;font:800 .9rem Nunito;cursor:pointer;background:#e3262b;color:#fff}
+  .bar .g{background:#fff;color:#1d2b45}
+  .page{width:210mm;min-height:297mm;margin:16px auto;background:#fff;padding:16mm 15mm;box-shadow:0 10px 30px -12px rgba(0,0,0,.25);position:relative}
+  .head{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;border-bottom:3px solid var(--ac2);padding-bottom:10px}
+  .head img{max-height:70px;max-width:230px;object-fit:contain}
+  .brandname{font-family:"Playfair Display",serif;font-size:24px;font-weight:700;color:var(--ac)}
+  .contact{text-align:right;font-size:12px;color:var(--muted);line-height:1.6}
+  .contact b{color:var(--ink)}
+  .ref{display:flex;justify-content:space-between;margin:14px 0 4px;font-size:12px;color:var(--muted)}
+  h1{font-family:"Playfair Display",serif;font-size:26px;margin:6px 0 2px;color:var(--ac)}
+  .lead{margin:8px 0 14px;line-height:1.6}
+  h2{font-size:15px;text-transform:uppercase;letter-spacing:.08em;color:var(--ac2);margin:18px 0 8px;font-weight:900}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{background:var(--ac);color:#fff;text-align:left;padding:7px 9px;font-weight:800}
+  td{padding:7px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+  .day{display:grid;grid-template-columns:90px 1fr;gap:12px;padding:8px 0;border-bottom:1px dashed var(--line)}
+  .day .d{font-weight:900;color:var(--ac)} .day .d small{display:block;font-weight:700;color:var(--muted)}
+  .day ul{margin:0;padding-left:18px;line-height:1.55}
+  .price{margin-top:16px;border-radius:12px;background:linear-gradient(120deg,#1d2b45,#2a3d63);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center}
+  .price .pp{font-size:26px;font-weight:900}.price .pp small{font-size:13px;font-weight:700;opacity:.8;display:block}
+  .price .tt{text-align:right;font-size:13px;opacity:.9}
+  .notes li{margin:3px 0;line-height:1.5}.ex li{color:#b42318}
+  .foot{margin-top:22px;padding-top:10px;border-top:1px solid var(--line);font-size:11.5px;color:var(--muted);display:flex;justify-content:space-between;gap:1rem}
+  .muted{color:var(--muted)}
+  .hide-price .price,.hide-price .ptable{display:none}
+  @media print{body{background:#fff}.bar{display:none}.page{margin:0;box-shadow:none;width:auto;min-height:auto;padding:10mm 12mm}@page{size:A4;margin:0}}
+</style>
+</head>
+<body>
+<div class="bar"><b id="bt">Loading…</b><label style="font-size:.85rem;display:flex;gap:.4rem;align-items:center"><input type="checkbox" id="hp"> Hide price</label><button class="g" onclick="history.length>1?history.back():window.close()">Close</button><button onclick="window.print()">Print / Save as PDF</button></div>
+<div class="page" id="pg"></div>
+<script>
+const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const money = (n, c) => `${c} ${c === 'PKR' ? Math.round(+n || 0).toLocaleString('en-PK') : (+n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const fd = s => s ? new Date(s + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+const fds = s => s ? new Date(s + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : '';
+const iso = s => s ? s.split('-').reverse().join('-') : '';
+const hm = t => t ? `${String(t).slice(0, 2)}:${String(t).slice(2, 4)}` : '';
+const addD = (s, n) => { const d = new Date(s + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+(async () => {
+  const id = new URLSearchParams(location.search).get('id'), tok = localStorage.getItem('cgt_token');
+  const r = await fetch('/api/quotes/' + id + '/print', { headers: { Authorization: 'Bearer ' + tok } });
+  const j = await r.json();
+  if (!r.ok) { document.getElementById('pg').innerHTML = '<p>' + esc(j.error || 'Please sign in to CGT Tours first.') + '</p>'; return; }
+  const q = j.quote, t = q.trip, b = j.brand, c = q.pricing.currency, it = q.items;
+  document.title = `${q.ref} – ${q.name}`; document.getElementById('bt').textContent = `${q.ref} · ${q.name}`;
+  const pax = `${t.pax.adt} adult${t.pax.adt > 1 ? 's' : ''}${t.pax.chd ? `, ${t.pax.chd} child${t.pax.chd > 1 ? 'ren' : ''}` : ''}${t.pax.inf ? `, ${t.pax.inf} infant` : ''}`;
+  const countries = [...new Set(t.destinations.map(d => d.country))].join(' & ');
+  const segsAll = (it.flights[0] && it.flights[0].legs || []).flatMap(l => l.segments);
+  const flightsOn = date => segsAll.filter(x => iso(x.depDate) === date).map(x => `Flight ${esc(x.mktg)} ${esc(x.flightNo)} ${esc(x.from)} → ${esc(x.to)} (${hm(x.depTime)} – ${hm(x.arrTime)})`);
+  // day-wise plan
+  const days = []; let n = 0;
+  t.destinations.forEach((d, di) => {
+    for (let i = 0; i < d.nights; i++) {
+      const date = addD(d.checkIn, i), lines = [];
+      if (i === 0) {
+        const tr = it.transfers.find(x => x.destIdx === di && x.direction !== 'DEPARTURE');
+        if (di > 0) { const prev = t.destinations[di - 1], pd = it.transfers.find(x => x.destIdx === di - 1 && x.direction === 'DEPARTURE'); lines.push(`Check-out in ${esc(prev.city)}`); if (pd) lines.push(esc(pd.title)); }
+        flightsOn(date).forEach(l => lines.push(l));
+        lines.push(di === 0 ? `Arrival in ${esc(d.city)}` : `Travel to ${esc(d.city)}`);
+        if (tr) lines.push(`${esc(tr.title)}${tr.vehicle ? ' (' + esc(tr.vehicle) + ')' : ''}`);
+        const h = it.hotels.find(x => x.destIdx === di); if (h) lines.push(`Check-in at ${esc(h.title)}`);
+      }
+      it.activities.filter(a => a.destIdx === di && a.date === date).forEach(a => lines.push(`${esc(a.title)}${a.modality ? ' – ' + esc(a.modality) : ''}`));
+      if (lines.length === 0) lines.push('Day at leisure');
+      days.push({ n: ++n, date, city: d.city, lines });
+    }
+  });
+  const last = t.destinations[t.destinations.length - 1], lastDi = t.destinations.length - 1;
+  const dep = it.transfers.find(x => x.destIdx === lastDi && x.direction === 'DEPARTURE');
+  days.push({ n: ++n, date: t.end, city: last.city, lines: ['Check-out from hotel', dep ? esc(dep.title) : '', ...flightsOn(t.end), `Departure from ${esc(last.city)}`].filter(Boolean) });
+  const flights = it.flights[0];
+  document.getElementById('pg').innerHTML = `
+    <div class="head"><div>${b.logo ? `<img src="${b.logo}" alt="">` : `<div class="brandname">${esc(b.name)}</div>`}</div>
+      <div class="contact"><b>${esc(b.name)}</b><br>${b.phone ? esc(b.phone) + '<br>' : ''}${b.email ? esc(b.email) + '<br>' : ''}${b.address ? esc(b.address) + '<br>' : ''}${b.website ? esc(b.website) : ''}</div></div>
+    <div class="ref"><span>Quotation ${esc(q.ref)}</span><span>Date: ${fd(q.updatedAt.slice(0, 10))}</span></div>
+    <h1>${esc(countries)} Package</h1>
+    <p class="lead">Dear Sir/Madam,<br>We are pleased to present the following <b>${esc(q.name)}</b> for <b>${pax}</b> travelling on <b>${fd(t.start)}</b> for <b>${t.nights} nights</b>.</p>
+    ${it.hotels.length ? `<h2>Accommodation</h2><table><thead><tr><th>City</th><th>Hotel</th><th>Room & meals</th><th>Nights</th><th>Category</th></tr></thead><tbody>${it.hotels.map(h => { const d = t.destinations[h.destIdx] || {}; return `<tr><td>${esc(d.city)}, ${esc(d.country)}</td><td><b>${esc(h.title)}</b> / Similar<div class="muted" style="font-size:12px">${fds(h.checkIn || d.checkIn)} – ${fds(h.checkOut || d.checkOut)}</div></td><td>${esc(h.rooms ? h.rooms.map(r => r.roomName).join(', ') : h.details || '')}${h.board ? '<br><span class="muted">' + esc(h.board) + '</span>' : ''}</td><td>${h.nights || d.nights}</td><td>${h.stars ? h.stars + ' Star Hotel' : ''}</td></tr>`; }).join('')}</tbody></table>` : ''}
+    ${flights ? `<h2>Flights</h2>${flights.legs ? `<table><thead><tr><th>Flight</th><th>From</th><th>To</th><th>Date</th><th>Dep</th><th>Arr</th></tr></thead><tbody>${flights.legs.flatMap(l => l.segments).map(s => `<tr><td>${esc(s.mktg)} ${esc(s.flightNo)}</td><td>${esc(s.from)}</td><td>${esc(s.to)}</td><td>${fds(iso(s.depDate))}</td><td>${hm(s.depTime)}</td><td>${hm(s.arrTime)}</td></tr>`).join('')}</tbody></table><p class="muted" style="font-size:12px">${flights.baggage ? 'Baggage: ' + esc(flights.baggage) + ' · ' : ''}${flights.refundable ? 'Refundable fare' : 'Non-refundable fare'} · subject to availability until ticketed.</p>` : `<p>${esc(flights.title)}</p>`}` : ''}
+    <h2>Day-wise itinerary</h2>${days.map(d => `<div class="day"><div class="d">Day ${d.n}<small>${fds(d.date)}</small></div><div><b>${esc(d.city)}</b><ul>${d.lines.map(l => `<li>${l}</li>`).join('')}</ul></div></div>`).join('')}
+    <h2>Inclusions</h2><ul class="notes">
+      ${it.hotels.length ? `<li><b>Accommodation:</b> ${t.nights} nights as per the itinerary</li>` : ''}
+      ${it.transfers.length ? `<li><b>Transfers:</b> ${it.transfers.map(x => esc(x.title)).join('; ')}</li>` : ''}
+      ${it.activities.length ? `<li><b>Tours:</b> ${it.activities.map(x => esc(x.title)).join('; ')}</li>` : ''}
+      <li><b>Flights:</b> ${flights ? 'Included as above' : 'On request, quoted separately'}</li>
+      ${it.extras.length ? it.extras.map(x => `<li>${esc(x.title)}${x.details ? ' – ' + esc(x.details) : ''}</li>`).join('') : '<li><b>Visa:</b> On request, quoted separately</li>'}
+    </ul>
+    <div class="price"><div class="pp"><small>Price per person</small>${money(q.pricing.perPerson, c)}</div><div class="tt">Total for ${pax}<br><b style="font-size:18px">${money(q.pricing.total, c)}</b></div></div>
+    ${q.notes ? `<h2>Special notes</h2><p>${esc(q.notes)}</p>` : ''}
+    <h2>Notes</h2><ul class="notes">${(j.notes || []).map(n => `<li>${esc(n)}</li>`).join('')}</ul>
+    <h2>Excludes</h2><ul class="notes ex">${(j.excludes || []).map(n => `<li>${esc(n)}</li>`).join('')}${flights ? '' : '<li>Flight tickets and visa fee (unless mentioned)</li>'}</ul>
+    <div class="foot"><span>${esc(b.name)}${b.phone ? ' · ' + esc(b.phone) : ''}</span><span>Prepared by ${esc(j.owner.name)} · Valid for ${j.validityHours} hours · Subject to availability at the time of booking</span></div>`;
+  document.getElementById('hp').onchange = e => document.body.classList.toggle('hide-price', e.target.checked);
+})();
+</script>
+</body>
+</html>
